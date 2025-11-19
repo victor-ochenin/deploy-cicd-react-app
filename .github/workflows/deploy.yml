@@ -1,0 +1,86 @@
+name: Deploy React App CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+      - name: Build
+        run: npm run build
+  
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      APP_DIR: ~/apps/deploy-cicd-react-app
+      PACKAGE_PATH: ~/tmp/deploy-package/deploy.tar.gz
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create deployment package
+        run: |
+          PACKAGE=/tmp/deploy.tar.gz
+          rm -f "$PACKAGE"
+          tar \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            -czf "$PACKAGE" .
+          cp "$PACKAGE" ./deploy.tar.gz
+      - name: Upload deployment package
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.REMOTE_KEY }}
+          source: "deploy.tar.gz"
+          target: ~/tmp/deploy-package
+      - name: Build and restart container
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.REMOTE_KEY }}
+          script: |
+            set -euo pipefail
+            APP_DIR="${{ env.APP_DIR }}"
+            PACKAGE="${{ env.PACKAGE_PATH }}"
+            case "$APP_DIR" in
+              ~/*) APP_DIR="$HOME/${APP_DIR#~/}" ;;
+            esac
+            case "$PACKAGE" in
+              ~/*) PACKAGE="$HOME/${PACKAGE#~/}" ;;
+            esac
+            APP_DIR="${APP_DIR/#\~\//$HOME/}"
+            PACKAGE="${PACKAGE/#\~\//$HOME/}"
+            mkdir -p "$(dirname "$PACKAGE")"
+            if [ ! -f "$PACKAGE" ]; then
+              FOUND="$(find "$(dirname "$PACKAGE")" -maxdepth 3 -name "$(basename "$PACKAGE")" -print -quit)"
+              if [ -n "$FOUND" ] && [ -f "$FOUND" ]; then
+                PACKAGE="$FOUND"
+              else
+                echo "Package $(basename "$PACKAGE") not found in $(dirname "$PACKAGE")" >&2
+                exit 1
+              fi
+            fi
+            mkdir -p "$APP_DIR"
+            tar -xzf "$PACKAGE" -C "$APP_DIR"
+            rm -f "$PACKAGE"
+            cd "$APP_DIR"
+            COMPOSE_CMD="sudo docker compose"
+            if ! sudo docker compose version >/dev/null 2>&1; then
+              COMPOSE_CMD="sudo docker-compose"
+            fi
+            $COMPOSE_CMD down --remove-orphans || true
+            $COMPOSE_CMD up -d --build --remove-orphans
