@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       APP_DIR: ~/apps/deploy-cicd-react-app
-      PACKAGE_PATH: ~/tmp/deploy.tar.gz
+      PACKAGE_PATH: ~/tmp/deploy-package/deploy.tar.gz
     steps:
       - uses: actions/checkout@v4
       - name: Create deployment package
@@ -45,7 +45,7 @@ jobs:
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.REMOTE_KEY }}
           source: "deploy.tar.gz"
-          target: ~/tmp
+          target: ~/tmp/deploy-package
       - name: Build and restart container
         uses: appleboy/ssh-action@v1.1.0
         with:
