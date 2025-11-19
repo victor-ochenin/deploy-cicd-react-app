@@ -37,13 +37,14 @@ jobs:
             --exclude='.git' \
             --exclude='node_modules' \
             -czf "$PACKAGE" .
+          cp "$PACKAGE" ./deploy.tar.gz
       - name: Upload deployment package
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.REMOTE_KEY }}
-          source: "/tmp/deploy.tar.gz"
+          source: "deploy.tar.gz"
           target: ~/tmp
       - name: Build and restart container
         uses: appleboy/ssh-action@v1.1.0
