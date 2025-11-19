@@ -62,6 +62,15 @@ jobs:
             case "$PACKAGE" in
               ~/*) PACKAGE="$HOME/${PACKAGE#~/}" ;;
             esac
+            if [ ! -f "$PACKAGE" ]; then
+              FOUND="$(find "$(dirname "$PACKAGE")" -maxdepth 3 -name "$(basename "$PACKAGE")" -print -quit)"
+              if [ -n "$FOUND" ] && [ -f "$FOUND" ]; then
+                PACKAGE="$FOUND"
+              else
+                echo "Package $(basename "$PACKAGE") not found in $(dirname "$PACKAGE")" >&2
+                exit 1
+              fi
+            fi
             mkdir -p "$(dirname "$PACKAGE")"
             mkdir -p "$APP_DIR"
             tar -xzf "$PACKAGE" -C "$APP_DIR"
