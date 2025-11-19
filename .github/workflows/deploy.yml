@@ -31,18 +31,19 @@ jobs:
       - uses: actions/checkout@v4
       - name: Create deployment package
         run: |
+          PACKAGE=/tmp/deploy.tar.gz
+          rm -f "$PACKAGE"
           tar \
             --exclude='.git' \
             --exclude='node_modules' \
-            --exclude='deploy.tar.gz' \
-            -czf deploy.tar.gz .
+            -czf "$PACKAGE" .
       - name: Upload deployment package
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.REMOTE_KEY }}
-          source: "deploy.tar.gz"
+          source: "/tmp/deploy.tar.gz"
           target: ~/tmp
       - name: Build and restart container
         uses: appleboy/ssh-action@v1.1.0
