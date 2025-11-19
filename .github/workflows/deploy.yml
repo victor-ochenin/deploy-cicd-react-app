@@ -62,6 +62,9 @@ jobs:
             case "$PACKAGE" in
               ~/*) PACKAGE="$HOME/${PACKAGE#~/}" ;;
             esac
+            APP_DIR="${APP_DIR/#\~\//$HOME/}"
+            PACKAGE="${PACKAGE/#\~\//$HOME/}"
+            mkdir -p "$(dirname "$PACKAGE")"
             if [ ! -f "$PACKAGE" ]; then
               FOUND="$(find "$(dirname "$PACKAGE")" -maxdepth 3 -name "$(basename "$PACKAGE")" -print -quit)"
               if [ -n "$FOUND" ] && [ -f "$FOUND" ]; then
@@ -71,7 +74,6 @@ jobs:
                 exit 1
               fi
             fi
-            mkdir -p "$(dirname "$PACKAGE")"
             mkdir -p "$APP_DIR"
             tar -xzf "$PACKAGE" -C "$APP_DIR"
             rm -f "$PACKAGE"
